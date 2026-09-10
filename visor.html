@@ -1,0 +1,34 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LP-UNSA 3D | Visor</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script><link rel="stylesheet" href="styles.css"></head><body>
+<header class="cabecera"><h1 class="marca">LP-UNSA 3D</h1><p class="sub">Colección paleontológica digital · Laboratorio de Paleontología – UNSA</p></header>
+<main><a href="index.html" class="volver">← Volver a la colección</a><section class="ficha"><div class="visor-card"><div id="visor3d"><div id="estado">Cargando modelo…</div><div id="ayuda"><strong>Controles</strong><br>Izquierdo: rotar<br>Derecho: desplazar<br>Rueda: zoom</div></div></div>
+<aside class="datos"><p id="codigo" class="codigo"></p><h2 id="identificacion"></h2><dl><div><dt>Colección</dt><dd>Laboratorio de Paleontología – UNSA</dd></div><div><dt>Localidad</dt><dd id="localidad"></dd></div><div><dt>Unidad geológica</dt><dd id="unidad"></dd></div><div><dt>Edad</dt><dd id="edad"></dd></div><div><dt>Digitalización</dt><dd>Escáner 3D EinScan Pro 2X V2</dd></div></dl>
+<p class="nota">Las zonas sin información cromática se muestran con un tono claro neutro.</p><div class="controles"><button id="reset" class="btn">Restablecer vista</button><button id="encuadrar" class="btn">Encuadrar espécimen</button><button id="rotar" class="btn">Activar / detener rotación automática</button><a id="descargar" class="btn primary" href="#" download>Descargar modelo 3D (.GLB)</a></div></aside></section></main>
+<script type="module">
+import * as THREE from'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import{TrackballControls}from'three/addons/controls/TrackballControls.js';import{catalogo}from'./catalogo.js';
+const p=new URLSearchParams(location.search),id=p.get('id')||'PUC-001',item=catalogo.find(x=>x.id===id);if(!item){document.body.innerHTML='<main><h1>Modelo no encontrado</h1><p><a href="index.html">Volver</a></p></main>';throw new Error(id)}
+for(const[k,v]of Object.entries({codigo:item.codigo,identificacion:item.identificacion,localidad:item.localidad,unidad:item.unidad,edad:item.edad}))document.getElementById(k).textContent=v;
+const descargar=document.getElementById('descargar');descargar.href=item.modelo;descargar.download=item.id+'.glb';
+const c=document.getElementById('visor3d'),estado=document.getElementById('estado'),scene=new THREE.Scene();scene.background=new THREE.Color(0xe9e6df);
+const camera=new THREE.PerspectiveCamera(35,c.clientWidth/c.clientHeight,.001,10000),renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(c.clientWidth,c.clientHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NoToneMapping;c.prepend(renderer.domElement);
+const controls=new TrackballControls(camera,renderer.domElement);controls.rotateSpeed=.55;controls.zoomSpeed=.75;controls.panSpeed=.22;controls.staticMoving=false;controls.dynamicDampingFactor=.18;
+let modelo=null,auto=false,inicial=null;
+function encuadrar(guardar=false){if(!modelo)return;modelo.updateMatrixWorld(true);let box=new THREE.Box3().setFromObject(modelo),centro=box.getCenter(new THREE.Vector3());modelo.position.sub(centro);modelo.updateMatrixWorld(true);box=new THREE.Box3().setFromObject(modelo);const s=box.getSize(new THREE.Vector3()),d=[['x',s.x],['y',s.y],['z',s.z]].sort((a,b)=>a[1]-b[1])[0][0],vf=THREE.MathUtils.degToRad(camera.fov),hf=2*Math.atan(Math.tan(vf/2)*camera.aspect);let an,al;if(d==='z'){an=s.x;al=s.y}else if(d==='y'){an=s.x;al=s.z}else{an=s.z;al=s.y}const dist=Math.max(al/(2*Math.tan(vf/2)),an/(2*Math.tan(hf/2)))*1.08;if(d==='z'){camera.position.set(0,0,dist);camera.up.set(0,1,0)}else if(d==='y'){camera.position.set(0,dist,0);camera.up.set(0,0,1)}else{camera.position.set(dist,0,0);camera.up.set(0,1,0)}const m=Math.max(s.x,s.y,s.z);camera.near=Math.max(m/5000,.001);camera.far=Math.max(m*100,dist*100);camera.updateProjectionMatrix();controls.target.set(0,0,0);controls.minDistance=Math.max(m*.03,.001);controls.maxDistance=m*25;controls.update();if(guardar)inicial={p:camera.position.clone(),u:camera.up.clone(),t:controls.target.clone()}}
+new GLTFLoader().load(item.modelo,g=>{modelo=g.scene;modelo.traverse(o=>{if(!o.isMesh)return;const orig=Array.isArray(o.material)?o.material:[o.material];const nuevo=orig.map(m=>m?.map?new THREE.MeshBasicMaterial({map:Object.assign(m.map,{colorSpace:THREE.SRGBColorSpace,needsUpdate:true}),color:0xffffff,side:THREE.DoubleSide,vertexColors:false}):new THREE.MeshBasicMaterial({color:0xf5f2ea,side:THREE.DoubleSide,vertexColors:false}));o.material=Array.isArray(o.material)?nuevo:nuevo[0]});scene.add(modelo);encuadrar(true);estado.textContent='Rotación libre · textura sin iluminación PBR'},x=>{if(x.total)estado.textContent='Cargando modelo… '+Math.round(x.loaded/x.total*100)+'%'},e => {
+  console.error("ERROR GLB:", e);
+
+  estado.textContent =
+    "Error: " +
+    (e?.message || e?.type || "No se pudo interpretar el archivo GLB");
+
+  alert(
+    "Problema cargando " + item.modelo +
+    "\n\n" +
+    (e?.message || e?.type || "Error desconocido")
+  );
+});
+document.getElementById('reset').onclick=()=>{if(!inicial)return;camera.position.copy(inicial.p);camera.up.copy(inicial.u);controls.target.copy(inicial.t);camera.updateProjectionMatrix();controls.update()};
+document.getElementById('encuadrar').onclick=()=>encuadrar(false);document.getElementById('rotar').onclick=()=>auto=!auto;
+(function anim(){requestAnimationFrame(anim);if(modelo&&auto)modelo.rotation.y+=.00065;controls.update();renderer.render(scene,camera)})();
+addEventListener('resize',()=>{camera.aspect=c.clientWidth/c.clientHeight;camera.updateProjectionMatrix();renderer.setSize(c.clientWidth,c.clientHeight);controls.handleResize()});renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+</script></body></html>

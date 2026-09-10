@@ -1,0 +1,19 @@
+LP-UNSA 3D — VERSIÓN CONGRESO
+
+1. Copia dentro de 'modelos' estos seis archivos:
+PUC-001.glb
+PUC-002.glb
+PUC-005.glb
+PUC-013.glb
+PUC-017.glb
+PUC-197.glb
+
+2. Abre CMD dentro de la carpeta LP_UNSA_3D_congreso.
+3. Ejecuta:
+py -m http.server 8000
+
+4. Abre:
+http://localhost:8000
+
+5. Si reemplazas archivos o código, usa Ctrl + F5.
+6. Para detener el servidor: Ctrl + C.
